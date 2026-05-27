@@ -133,7 +133,7 @@ If[
 							"header" -> ExportString[
 											Append[
 												header,
-												{"date" -> DateString["ISODateTime"], "msg_type" -> replyType, "msg_id" -> StringInsert[StringReplace[CreateUUID[], "-" -> ""], "-", 9]}
+												{"date" -> DateString[DateObject[Now, TimeZone -> 0], "ISODateTime"] <> "+00:00", "msg_type" -> replyType, "msg_id" -> StringInsert[StringReplace[CreateUUID[], "-" -> ""], "-", 9]}
 											],
 											"JSON",
 											"Compact" -> True
