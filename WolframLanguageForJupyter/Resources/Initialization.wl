@@ -365,21 +365,21 @@ If[
 							Continue[];
 						];
 						(* and loop the data back to Jupyter *)
-						socketWriteFunction[
-							heartbeatSocket, 
-							heartbeatRecv,
-							"Multipart" -> False
-						];
+						socketWriteFunctionClosure[heartbeatSocket, heartbeatRecv, "Multipart" -> False];
+						(*	the subshell spawned by LocalSubmit
+							does not have access to the scope,
+							does not see the socketWriteFunction,
+							hence we need to pass the function to it as well. *)
 					];,
 					HandlerFunctions-> Association["TaskFinished" -> Quit]
 				]
 			],
 			(* see above *)
-			placeholder1 -> heartbeatString,
+			{placeholder1 -> heartbeatString, socketWriteFunctionClosure -> socketWriteFunction},
 			Infinity
 		];
 	(* start the heartbeat thread *)
-	(* Quiet[ReleaseHold[heldLocalSubmit]]; *)
+	Quiet[ReleaseHold[heldLocalSubmit]];
 
 	(* end the private context for WolframLanguageForJupyter *)
 	End[]; (* `Private`` *)
