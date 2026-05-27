@@ -6,7 +6,8 @@ Description:
 		(auto-)completion of Wolfram Language
 		code
 Symbols defined:
-	rewriteNamedCharacters
+	rewriteNamedCharacters,
+	getCursorCompletion
 *************************************************)
 
 (************************************
@@ -72,6 +73,64 @@ If[
 					]
 				]
 			];
+		];
+
+	(* returns {matches, cursor_start, cursor_end} *)
+	getCursorCompletion[code_String, cursorPos_Integer] :=
+		Module[
+			{codeStr, namedCharMatch, tokenMatch, token, tokenWLStart, matches},
+			(*	have to decapitate the rest of the string because rewriteNamedCharacters
+				cannot handle it *)
+			codeStr = StringTake[code, {1, cursorPos}];
+			
+
+			(* find \[Alpha] symbols *)
+			namedCharMatch = StringCases[
+				codeStr,
+				"\\" ~~ "[" ~~ LetterCharacter...
+			];
+			If[Length[namedCharMatch] > 0,
+				Return[{
+					Prepend[
+						Select[
+							rewriteNamedCharacters[namedCharMatch],
+							(!containsPUAQ[#])&
+						],
+						codeStr
+					],
+					0,
+					StringLength[codeStr]
+				}]
+			];
+
+			(* find WL identifiers *)
+			tokenMatch = StringCases[
+				codeStr,
+				(LetterCharacter | "$") ~~ (LetterCharacter | DigitCharacter | "$" | "`")... ~~ EndOfString
+			];
+			If[Length[tokenMatch] == 0,
+				Return[{
+					{},
+					StringLength[codeStr],
+					StringLength[codeStr]
+				}]
+			];
+
+			token = First[tokenMatch];
+			matches = Names[token <> "*", IgnoreCase->True];
+			If[!StringContainsQ[token, "`"], (* if the input token does not have a context qualifier *)
+				matches = DeleteDuplicates[
+					StringReplace[
+						matches,
+						StartOfString ~~ ___ ~~ "`" ~~ rest__ :> rest (* truncate context qualifier*)
+					]
+				]
+			];
+			Return[{
+				matches,
+				StringLength[codeStr] - StringLength[token],
+				StringLength[codeStr]
+			}]
 		];
 
 	(* end the private context for WolframLanguageForJupyter *)

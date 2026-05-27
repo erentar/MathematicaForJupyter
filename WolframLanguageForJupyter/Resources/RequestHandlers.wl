@@ -395,40 +395,26 @@ If[
 	completeRequestHandler[] :=
 		Module[
 			{
-				(* for storing the code string to offer completion suggestions on *)
-				codeStr
+				(* {matches, cursor_start, cursor_end} from getCursorCompletion *)
+				completionData
 			},
-			(* get the code string to rewrite the named characters of, ending at the cursor *)
-			codeStr =
-				StringTake[
-					loopState["frameAssoc"]["content"]["code"],
-					{
-						1,
-						loopState["frameAssoc"]["content"]["cursor_pos"]
-					}
-				];
+			completionData = getCursorCompletion[
+				loopState["frameAssoc"]["content"]["code"],
+				loopState["frameAssoc"]["content"]["cursor_pos"]
+			];
 			(* set the appropriate reply type *)
 			loopState["replyMsgType"] = "complete_reply";
-			(* set the content of the reply to a list of rewrites for any named characters in the code string *)
-			loopState["replyContent"] = 
+			loopState["replyContent"] =
 				ByteArrayToString[
 					ExportByteArray[
 						Association[
 							"matches" ->
-								DeleteDuplicates[
-									Prepend[
-										Select[
-											rewriteNamedCharacters[codeStr],
-											(!containsPUAQ[#1])&
-										],
-										codeStr
-									]
-								],
-							"cursor_start" -> 0,
-							"cursor_end" -> StringLength[codeStr],
+								DeleteDuplicates[completionData[[1]]],
+							"cursor_start" -> completionData[[2]],
+							"cursor_end" -> completionData[[3]],
 							"metadata" -> {},
 							"status" -> "ok"
-						], 
+						],
 						"JSON",
 						"Compact" -> True
 					]
