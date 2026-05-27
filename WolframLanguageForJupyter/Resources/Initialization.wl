@@ -378,8 +378,10 @@ If[
 			HandlerFunctions -> Association["TaskFinished" -> Quit]
 		]
 	];
-	(* start the heartbeat thread *)
-	Quiet[ReleaseHold[heldLocalSubmit]];
+	(* Quiet[ReleaseHold[heldLocalSubmit]]; *)
+	(* heartbeat thread is started lazily after kernel_info_reply is sent;
+	   see KernelForWolframLanguageForJupyter.wl *)
+	
 
 	(* end the private context for WolframLanguageForJupyter *)
 	End[]; (* `Private`` *)

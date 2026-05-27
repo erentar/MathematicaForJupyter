@@ -59,8 +59,13 @@ loop[] :=
 			statusReplyFrame,
 
 			(* a frame for sending replies on a socket *)
-			replyFrame
+			replyFrame,
+
+			(*	flag to ensure the heartbeat thread is started only once,
+      			after the kernel_info handshake completes *)
+      		heartbeatStarted
 		},
+      	heartbeatStarted = False;
 		While[
 			True,
 			Switch[
@@ -140,6 +145,14 @@ loop[] :=
 					];
 				(* send the frame *)
 				sendFrame[readySocket, replyFrame];
+
+				(* start the heartbeat thread once, after kernel_info_reply is sent,
+				   so the sub-kernel startup does not interfere with Jupyter Lab's handshake *)
+				If[
+					!heartbeatStarted && loopState["replyMsgType"] === "kernel_info_reply",
+					heartbeatStarted = True;
+					Quiet[ReleaseHold[heldLocalSubmit]];
+				];
 
 				(* if an ioPubReplyFrame was created, send it on the IO Publish socket *)
 				If[
