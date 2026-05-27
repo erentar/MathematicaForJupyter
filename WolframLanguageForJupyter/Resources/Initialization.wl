@@ -46,6 +46,7 @@ If[
 
 	(* obtain ZMQ utilities *)
 	Needs["ZeroMQLink`"]; (* SocketOpen *)
+	Get[FileNameJoin[{DirectoryName[$InputFileName], "SocketUtilities.wl"}]]; (* socketWriteFunction *)
 
 (************************************
 	private symbols
@@ -338,46 +339,45 @@ If[
 
 	(* start heartbeat thread *)
 	(* see https://jupyter-client.readthedocs.io/en/stable/messaging.html#heartbeat-for-kernels *)
-	heldLocalSubmit =
-		Replace[
-			Hold[
-				(* submit a task for the new kernel *)
-				LocalSubmit[
-					(* get required ZMQ utilities in the new kernel *)
-					Get["ZeroMQLink`"];
-					(* open the heartbeat socket -- inserted with Replace and a placeholder *)
-					heartbeatSocket = SocketOpen[placeholder1, "ZMQ_REP"];
+	heldLocalSubmit = With[
+		{
+			socketWriteFunctionClosure = socketWriteFunction,
+			placeholder1 = heartbeatString
+		},
+		Hold[
+			LocalSubmit[
+				(* get required ZMQ utilities in the new kernel *)
+				Get["ZeroMQLink`"];
+				(* open the heartbeat socket -- inserted using With *)
+				heartbeatSocket = SocketOpen[placeholder1, "ZMQ_REP"];
+				(* check for any problems *)
+				If[
+					FailureQ[heartbeatSocket],
+					Quit[];
+				];
+				(* do this "forever" *)
+				While[
+					True,
+					(* wait for new data on the heartbeat socket *)
+					SocketWaitNext[{heartbeatSocket}];
+					(* receive the data *)
+					heartbeatRecv = SocketReadMessage[heartbeatSocket];
 					(* check for any problems *)
 					If[
-						FailureQ[heartbeatSocket],
-						Quit[];
+						FailureQ[heartbeatRecv],
+						Continue[];
 					];
-					(* do this "forever" *)
-					While[
-						True,
-						(* wait for new data on the heartbeat socket *)
-						SocketWaitNext[{heartbeatSocket}];
-						(* receive the data *)
-						heartbeatRecv = SocketReadMessage[heartbeatSocket];
-						(* check for any problems *)
-						If[
-							FailureQ[heartbeatRecv],
-							Continue[];
-						];
-						(* and loop the data back to Jupyter *)
-						socketWriteFunctionClosure[heartbeatSocket, heartbeatRecv, "Multipart" -> False];
-						(*	the subshell spawned by LocalSubmit
-							does not have access to the scope,
-							does not see the socketWriteFunction,
-							hence we need to pass the function to it as well. *)
-					];,
-					HandlerFunctions-> Association["TaskFinished" -> Quit]
-				]
-			],
-			(* see above *)
-			{placeholder1 -> heartbeatString, socketWriteFunctionClosure -> socketWriteFunction},
-			Infinity
-		];
+					(* and loop the data back to Jupyter *)
+					socketWriteFunctionClosure[heartbeatSocket, heartbeatRecv, "Multipart" -> False];
+					(*	the subshell spawned by LocalSubmit
+						does not have access to the scope,
+						does not see the socketWriteFunction,
+						hence we need to pass the function to it as well. *)
+				];
+			];,
+			HandlerFunctions -> Association["TaskFinished" -> Quit]
+		]
+	];
 	(* start the heartbeat thread *)
 	Quiet[ReleaseHold[heldLocalSubmit]];
 
