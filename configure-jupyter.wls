@@ -316,6 +316,8 @@ configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] :=
 				]
 			];
 
+			CopyFile[ FileNameJoin[{projectHome, "WolframLanguageForJupyter", "logo.svg"}], FileNameJoin[{tempDir, "logo-svg.svg"}] ];
+
 			(* create a list of arguments that directs Jupyter to install from the staging directory *)
 			commandArgs = {jupyterPath, "kernelspec", "install", "--user", tempDir};,
 			failureMessage = notremoved;
