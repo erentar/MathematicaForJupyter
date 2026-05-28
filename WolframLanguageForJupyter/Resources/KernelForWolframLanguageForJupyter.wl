@@ -102,6 +102,9 @@ loop[] :=
 					"complete_request",
 					(* completeRequestHandler will read and update loopState *)
 					completeRequestHandler[];,
+					(* handle documentation lookup requests *)
+					"inspect_request",
+					inspectRequestHandler[];,
 					(* if asking the kernel to shutdown, set doShutdown to True *)
 					"shutdown_request",
 					loopState["replyMsgType"] = "shutdown_reply";

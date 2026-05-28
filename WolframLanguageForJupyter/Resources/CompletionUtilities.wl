@@ -75,14 +75,28 @@ If[
 			];
 		];
 
-	(* returns {matches, cursor_start, cursor_end} *)
+	usageStr[name_String] := With[{
+			usage1 = Quiet[
+				ToString[
+					ToExpression[name<>"::usage"],
+					OutputForm
+				]
+			]
+		},
+      	If[StringQ[usage1], 
+			usage1,
+			""
+		]
+    ];
+
+
+	(* returns matches, cursorStart, cursorEnd, docstrings *)
 	getCursorCompletion[code_String, cursorPos_Integer] :=
 		Module[
-			{codeStr, namedCharMatch, tokenMatch, token, tokenWLStart, matches},
+			{codeStr, namedCharMatch, tokenMatch, token, tokenWLStart, matches, docstrings},
 			(*	have to decapitate the rest of the string because rewriteNamedCharacters
 				cannot handle it *)
-			codeStr = StringTake[code, {1, cursorPos}];
-			
+			codeStr = StringTake[code, {1, Min[cursorPos, StringLength[code]]}];
 
 			(* find \[Alpha] symbols *)
 			namedCharMatch = StringCases[
@@ -90,17 +104,18 @@ If[
 				"\\" ~~ "[" ~~ LetterCharacter...
 			];
 			If[Length[namedCharMatch] > 0,
-				Return[{
-					Prepend[
-						Select[
-							rewriteNamedCharacters[namedCharMatch],
-							(!containsPUAQ[#])&
-						],
+				Return[Association[
+					"matches" -> 
+						Prepend[
+							Select[
+								rewriteNamedCharacters[namedCharMatch],
+								(!containsPUAQ[#])&],
 						codeStr
 					],
-					0,
-					StringLength[codeStr]
-				}]
+					"cursorStart" -> 0,
+					"cursorEnd" -> StringLength[codeStr],
+					"docstrings" -> {}
+				]]
 			];
 
 			(* find WL identifiers *)
@@ -109,11 +124,12 @@ If[
 				(LetterCharacter | "$") ~~ (LetterCharacter | DigitCharacter | "$" | "`")... ~~ EndOfString
 			];
 			If[Length[tokenMatch] == 0,
-				Return[{
-					{},
-					StringLength[codeStr],
-					StringLength[codeStr]
-				}]
+				Return[Association[
+					"matches" -> {},
+					"cursorStart" -> StringLength[codeStr],
+					"cursorEnd" -> StringLength[codeStr],
+					"docstrings" -> {}
+				]]
 			];
 
 			token = First[tokenMatch];
@@ -126,11 +142,19 @@ If[
 					]
 				]
 			];
-			Return[{
-				matches,
-				StringLength[codeStr] - StringLength[token],
-				StringLength[codeStr]
-			}]
+
+			docstrings = Map[
+      			usageStr,
+      			matches
+      		];
+
+
+			Return[Association[
+				"matches" -> matches,
+				"cursorStart" -> StringLength[codeStr] - StringLength[token],
+				"cursorEnd" -> StringLength[codeStr],
+				"docstrings" -> docstrings
+			]];
 		];
 
 	(* end the private context for WolframLanguageForJupyter *)
