@@ -83,9 +83,9 @@ getNames[mathBin_String, notProvidedQ_?BooleanQ] :=
 		Return[
 			{
 				(* Kernel ID *)
-				StringJoin["wolframlanguage", versionStr],
+				"mathematica,
 				(* Display Name *)
-				StringJoin["Wolfram Language ", versionStr]
+				StringJoin["Mathematica ", versionStr]
 			}
 		];
 	];
@@ -298,7 +298,7 @@ configureJupyter[specs_Association, removeQ_?BooleanQ, removeAllQ_?BooleanQ] :=
 						(* , "-noprompt" *)
 					},
 					"display_name" -> displayName,
-					"language" -> "Wolfram Language"
+					"language" -> "Mathematica"
 				]
 			];
 
