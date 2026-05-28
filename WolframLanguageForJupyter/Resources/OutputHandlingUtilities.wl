@@ -151,23 +151,15 @@ If[
 	   	];
 
 	   	(* if expr just contains atomic objects of the types listed above, along with some symbols,
-	   		return True only if the symbols have no attached rules *)
+	   		return True as long as no string contains private use area characters;
+	   		atomic symbols always have a purely textual ToString form regardless of attached rules *)
 		If[
 			ContainsOnly[Keys[pObjects], {Integer, Real, String, Symbol}],
 	   		Return[
 				AllTrue[
-						Lookup[pObjects, String, {}], 
-						(!containsPUAQ[ReleaseHold[#1]]) &
-					] &&
-		   			AllTrue[
-		   				Lookup[pObjects, Symbol, {}], 
-		   				(
-							Replace[
-								#1,
-								Hold[elem_] :> ToString[Definition[elem]]
-							] === "Null"
-		   				) &
-		   			]
+					Lookup[pObjects, String, {}],
+					(!containsPUAQ[ReleaseHold[#1]]) &
+				]
 	   		];
 	   	];
 
