@@ -205,13 +205,7 @@ If[
 					(* mark this result as preformatted only if it isn't TeX *)
 					If[
 						!isTeX,
-						{
-							(* preformatted *)
-							"<pre style=\"",
-							(* use Courier *)
-							StringJoin[{"&#", ToString[#1], ";"} & /@ ToCharacterCode["font-family: \"Courier New\",Courier,monospace;", "Unicode"]], 
-							"\">"
-						},
+						{"<pre>"},
 						{}
 					],
 
