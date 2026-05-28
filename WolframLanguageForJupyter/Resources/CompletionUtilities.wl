@@ -6,7 +6,8 @@ Description:
 		(auto-)completion of Wolfram Language
 		code
 Symbols defined:
-	rewriteNamedCharacters
+	rewriteNamedCharacters,
+	getCursorCompletion
 *************************************************)
 
 (************************************
@@ -72,6 +73,88 @@ If[
 					]
 				]
 			];
+		];
+
+	usageStr[name_String] := With[{
+			usage1 = Quiet[
+				ToString[
+					ToExpression[name<>"::usage"],
+					OutputForm
+				]
+			]
+		},
+      	If[StringQ[usage1], 
+			usage1,
+			""
+		]
+    ];
+
+
+	(* returns matches, cursorStart, cursorEnd, docstrings *)
+	getCursorCompletion[code_String, cursorPos_Integer] :=
+		Module[
+			{codeStr, namedCharMatch, tokenMatch, token, tokenWLStart, matches, docstrings},
+			(*	have to decapitate the rest of the string because rewriteNamedCharacters
+				cannot handle it *)
+			codeStr = StringTake[code, {1, Min[cursorPos, StringLength[code]]}];
+
+			(* find \[Alpha] symbols *)
+			namedCharMatch = StringCases[
+				codeStr,
+				"\\" ~~ "[" ~~ LetterCharacter...
+			];
+			If[Length[namedCharMatch] > 0,
+				Return[Association[
+					"matches" -> 
+						Prepend[
+							Select[
+								rewriteNamedCharacters[namedCharMatch],
+								(!containsPUAQ[#])&],
+						codeStr
+					],
+					"cursorStart" -> 0,
+					"cursorEnd" -> StringLength[codeStr],
+					"docstrings" -> {}
+				]]
+			];
+
+			(* find WL identifiers *)
+			tokenMatch = StringCases[
+				codeStr,
+				(LetterCharacter | "$") ~~ (LetterCharacter | DigitCharacter | "$" | "`")... ~~ EndOfString
+			];
+			If[Length[tokenMatch] == 0,
+				Return[Association[
+					"matches" -> {},
+					"cursorStart" -> StringLength[codeStr],
+					"cursorEnd" -> StringLength[codeStr],
+					"docstrings" -> {}
+				]]
+			];
+
+			token = First[tokenMatch];
+			matches = Names[token <> "*", IgnoreCase->True];
+			If[!StringContainsQ[token, "`"], (* if the input token does not have a context qualifier *)
+				matches = DeleteDuplicates[
+					StringReplace[
+						matches,
+						StartOfString ~~ ___ ~~ "`" ~~ rest__ :> rest (* truncate context qualifier*)
+					]
+				]
+			];
+
+			docstrings = Map[
+      			usageStr,
+      			matches
+      		];
+
+
+			Return[Association[
+				"matches" -> matches,
+				"cursorStart" -> StringLength[codeStr] - StringLength[token],
+				"cursorEnd" -> StringLength[codeStr],
+				"docstrings" -> docstrings
+			]];
 		];
 
 	(* end the private context for WolframLanguageForJupyter *)

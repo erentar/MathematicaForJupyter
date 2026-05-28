@@ -395,40 +395,73 @@ If[
 	completeRequestHandler[] :=
 		Module[
 			{
-				(* for storing the code string to offer completion suggestions on *)
-				codeStr
+				(* {matches, cursor_start, cursor_end} from getCursorCompletion *)
+				completionData
 			},
-			(* get the code string to rewrite the named characters of, ending at the cursor *)
-			codeStr =
-				StringTake[
-					loopState["frameAssoc"]["content"]["code"],
-					{
-						1,
-						loopState["frameAssoc"]["content"]["cursor_pos"]
-					}
-				];
+			completionData = getCursorCompletion[
+				loopState["frameAssoc"]["content"]["code"],
+				loopState["frameAssoc"]["content"]["cursor_pos"]
+			];
 			(* set the appropriate reply type *)
 			loopState["replyMsgType"] = "complete_reply";
-			(* set the content of the reply to a list of rewrites for any named characters in the code string *)
-			loopState["replyContent"] = 
+			loopState["replyContent"] =
 				ByteArrayToString[
 					ExportByteArray[
 						Association[
 							"matches" ->
-								DeleteDuplicates[
-									Prepend[
-										Select[
-											rewriteNamedCharacters[codeStr],
-											(!containsPUAQ[#1])&
-										],
-										codeStr
-									]
-								],
-							"cursor_start" -> 0,
-							"cursor_end" -> StringLength[codeStr],
-							"metadata" -> {},
+								DeleteDuplicates[completionData["matches"]],
+							"cursor_start" -> completionData["cursorStart"],
+							"cursor_end" -> completionData["cursorEnd"],
+							"metadata" -> Association[
+								"_jupyter_types_experimental" ->
+      								MapThread[
+      									Association["text" -> #1, "docstring" -> #2] &,
+      									{completionData[[1]], completionData[[4]]}
+      								]
+							],
 							"status" -> "ok"
-						], 
+						],
+						"JSON",
+						"Compact" -> True
+					]
+				];
+		];
+
+	(* handle inspect_request message frames received on the shell socket *)
+	inspectRequestHandler[] :=
+		Module[
+			{code, cursorPos, completionData, token, usage},
+			code = loopState["frameAssoc"]["content"]["code"];
+			cursorPos = loopState["frameAssoc"]["content"]["cursor_pos"];
+			completionData = getCursorCompletion[code,cursorPos];
+			loopState["replyMsgType"] = "inspect_reply";
+
+			token = If[
+				Length[completionData["matches"]] > 0 && completionData["cursorEnd"] > completionData["cursorStart"],
+    			StringTake[
+					code,
+					{
+						completionData["cursorStart"] + 1,
+						completionData["cursorEnd"]
+					}
+				],
+       			""
+       		];
+
+			usage = If[!(StringLength[token] > 0),
+				"",
+				usageStr[token]
+      		];
+
+			loopState["replyContent"] =
+				ByteArrayToString[
+					ExportByteArray[
+						Association[
+							"status" -> "ok",
+							"found" -> (StringLength[usage] > 0),
+							"data" -> Association["text/plain" -> usage],
+							"metadata" -> Association[]
+						],
 						"JSON",
 						"Compact" -> True
 					]
